@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn the Fretboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;
+            background-color: #1a1a1a; color: #eeeeee; padding: 20px;
+            /* Subtly transparent image background */
+            background-image: linear-gradient(rgba(26, 26, 26, 0.96), rgba(26, 26, 26, 0.96)), url('background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(42, 42, 42, 0.85); /* Semi-transparent container to see background */
+            padding: 2rem; border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6); width: 100%; max-width: 850px;
+            backdrop-filter: blur(8px); /* Add a subtle blur for readability */
+        }
+
+        h1 { margin: 0 0 1.5rem; font-size: 1.1rem; font-weight: 400; color: #00adb5; text-transform: uppercase; letter-spacing: 4px; }
+        .section-label { font-size: 0.7rem; color: #ccc; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        .chord-card {
+            background: rgba(26, 26, 26, 0.9); border: 2px solid #444; border-radius: 12px;
+            padding: 15px; margin-bottom: 1.5rem; min-height: 120px;
+            display: flex; flex-direction: column; justify-content: center; position: relative;
+        }
+        #currentChord { font-size: 3.5rem; font-weight: bold; color: #fff; margin: 0; display: flex; align-items: center; justify-content: center; }
+        #currentChord small { font-size: 1.8rem; color: #00adb5; margin-right: 15px; opacity: 0.8; font-weight: 400; }
+
+        .beat-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+        .beat-dot { width: 12px; height: 12px; border-radius: 50%; background: #444; transition: background 0.1s; }
+        .beat-dot.active { background: #00adb5; box-shadow: 0 0 10px #00adb5; }
+
+        .progress-track { width: 100%; height: 4px; background: #333; border-radius: 2px; overflow: hidden; margin-top: 10px; }
+        #progressBar { width: 0%; height: 100%; background: #00adb5; transition: width 0.1s linear; }
+
+        .controls-wrapper { display: flex; flex-direction: column; gap: 20px; margin-bottom: 20px; }
+
+        .tempo-row { display: flex; align-items: center; gap: 20px; width: 100%; max-width: 500px; margin: 0 auto; }
+        .slider-flex { flex-grow: 1; text-align: left; }
+        .bpm-aside { min-width: 100px; text-align: left; border-left: 2px solid #555; padding-left: 20px; }
+        .bpm-aside .value { font-size: 2.2rem; font-weight: bold; color: #00adb5; display: block; line-height: 1; }
+        .bpm-aside .label { font-size: 0.7rem; color: #ccc; text-transform: uppercase; }
+
+        .slider-block { width: 100%; max-width: 500px; margin: 0 auto; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #00adb5; }
+
+        .visualizer-toggle-wrapper {
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer; margin-top: 2rem; padding: 8px 15px; border-radius: 6px;
+            transition: background 0.2s; user-select: none;
+            background: rgba(26, 26, 26, 0.7); /* Background for toggle button itself */
+        }
+        .visualizer-toggle-wrapper:hover { background: #444; }
+
+        .triangle-icon {
+            display: inline-block; width: 0; height: 0; margin-left: 10px;
+            border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+            border-left: 7px solid #ccc;
+            vertical-align: middle;
+            margin-bottom: 2px;
+            transition: transform 0.2s, border-left-color 0.2s;
+        }
+        .triangle-icon.expanded { transform: rotate(90deg); border-left-color: #00adb5; }
+
+        .hidden { display: none !important; }
+
+        .fretboard-area { display: flex; margin-top: 1rem; justify-content: center; }
+        .open-column-wrapper { display: flex; flex-direction: column; width: 40px; margin-right: 5px; padding-top: 12px; }
+        .open-notes-column { display: grid; grid-template-rows: repeat(6, 25px); }
+        .fretboard-wrapper { display: flex; flex-direction: column; flex: 1; min-width: 700px; position: relative; }
+        .fretboard { display: grid; grid-template-rows: repeat(6, 25px); background: #3d2b1f; border-left: 6px solid #888; position: relative; }
+        .string { border-bottom: 1px solid #777; display: flex; align-items: center; height: 24px; position: relative; z-index: 1; }
+        .fret { flex: 1; border-right: 2px solid #aaa; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+        .open-slot { display: flex; align-items: center; justify-content: center; height: 25px; }
+
+        .note-marker {
+            width: 18px; height: 18px; border-radius: 50%;
+            font-size: 0.65rem; font-weight: 800; display: none;
+            z-index: 2; line-height: 18px; text-align: center;
+        }
+        .note-marker.active { display: block; }
+        .note-marker.root { background: #00adb5; color: white; }
+        .note-marker.interval { background: #FFD700; color: #1a1a1a; }
+
+        .fret-num-row { display: flex; height: 20px; }
+        .fret-num { flex: 1; font-size: 0.7rem; color: #ccc; margin-top: 5px; text-align: center; }
+
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; text-align: left; }
+        select { background: #333; color: #eee; border: 2px solid #444; padding: 10px; border-radius: 8px; width: 100%; cursor: pointer; }
+
+        button#playBtn {
+            background-color: #00adb5; color: white; border: none; padding: 15px;
+            font-size: 1rem; font-weight: bold; text-transform: uppercase; border-radius: 10px;
+            cursor: pointer; width: 100%; margin-top: 20px;
+        }
+        button#playBtn.playing { background-color: #f39c12; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Learn the Fretboard</h1>
+
+    <div class="chord-card">
+        <div class="beat-container">
+            <div class="beat-dot" id="dot0"></div>
+            <div class="beat-dot" id="dot1"></div>
+            <div class="beat-dot" id="dot2"></div>
+            <div class="beat-dot" id="dot3"></div>
+        </div>
+        <p id="currentChord">---</p>
+        <div class="progress-track"><div id="progressBar"></div></div>
+    </div>
+
+    <div class="config-grid">
+        <div>
+            <div class="section-label">Key</div>
+            <div style="display: flex; gap: 5px;">
+                <select id="rootSelector">
+                    <option value="C">C</option>
+                    <option value="C#">C# / D♭</option>
+                    <option value="D">D</option>
+                    <option value="Eb">D# / E♭</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="F#">F# / G♭</option>
+                    <option value="G" selected>G</option>
+                    <option value="Ab">G# / A♭</option>
+                    <option value="A">A</option>
+                    <option value="Bb">A# / B♭</option>
+                    <option value="B">B</option>
+                </select>
+                <select id="modeSelector">
+                    <option value="major">Major</option><option value="minor">Minor</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <div class="section-label">Switch Every</div>
+            <select id="measureSelector">
+                <option value="4">1 Measure</option>
+                <option value="8" selected>2 Measures</option>
+                <option value="12">3 Measures</option>
+                <option value="16">4 Measures</option>
+                <option value="32">8 Measures</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="controls-wrapper">
+        <div class="tempo-row">
+            <div class="slider-flex">
+                <div class="section-label">Tempo</div>
+                <input type="range" id="tempoSlider" min="60" max="220" value="120">
+            </div>
+            <div class="bpm-aside">
+                <span class="value" id="bpmValue">120</span>
+                <span class="label">BPM</span>
+            </div>
+        </div>
+
+        <div class="slider-block">
+            <div class="section-label">Volume</div>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.5">
+        </div>
+    </div>
+
+    <div class="visualizer-toggle-wrapper" id="toggleVis">
+        <span class="section-label" style="margin-bottom: 0;">Note Visualizer</span>
+        <span class="triangle-icon" id="triIcon"></span>
+    </div>
+
+    <div id="visualizerContent" class="hidden">
+        <div class="fretboard-area">
+            <div class="open-column-wrapper">
+                <div class="open-notes-column" id="openColumn"></div>
+            </div>
+
+            <div class="fretboard-wrapper">
+                <div style="height: 12px;"></div>
+                <div class="fretboard" id="fretboard"></div>
+                <div class="fret-num-row" id="fretLabels"></div>
+            </div>
+        </div>
+    </div>
+
+    <button id="playBtn">Start Practice</button>
+</div>
+
+<script>
+    // JS remains unchanged as this is purely a visual background update
+    const notes = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+    const flatMap = { 'Eb': 'E♭', 'Ab': 'A♭', 'Bb': 'B♭' };
+
+    const stringRoots = ['E', 'B', 'G', 'D', 'A', 'E'];
+    const majorIntervals = [0, 2, 4, 5, 7, 9, 11];
+    const minorIntervals = [0, 2, 3, 5, 7, 8, 10];
+    const majorQualities = ['', 'm', 'm', '', '', 'm', 'dim'];
+    const minorQualities = ['m', 'dim', '', 'm', 'm', '', ''];
+    const majorNumerals = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'];
+    const minorNumerals = ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII'];
+
+    function initFretboard() {
+        const board = document.getElementById('fretboard');
+        const openCol = document.getElementById('openColumn');
+        const labels = document.getElementById('fretLabels');
+        board.innerHTML = ''; openCol.innerHTML = ''; labels.innerHTML = '';
+
+        for (let f = 1; f <= 12; f++) {
+            const lab = document.createElement('div');
+            lab.className = 'fret-num'; lab.textContent = f; labels.appendChild(lab);
+        }
+
+        for (let s = 0; s < 6; s++) {
+            const openSlot = document.createElement('div');
+            openSlot.className = 'open-slot';
+            const openMarker = document.createElement('div');
+            openMarker.className = 'note-marker'; openMarker.id = `note-${s}-0`;
+            openSlot.appendChild(openMarker); openCol.appendChild(openSlot);
+
+            const stringDiv = document.createElement('div');
+            stringDiv.className = 'string';
+            for (let f = 1; f <= 12; f++) {
+                const fretDiv = document.createElement('div');
+                fretDiv.className = 'fret';
+                const marker = document.createElement('div');
+                marker.className = 'note-marker'; marker.id = `note-${s}-${f}`;
+                fretDiv.appendChild(marker); stringDiv.appendChild(fretDiv);
+            }
+            board.appendChild(stringDiv);
+        }
+    }
+
+    let isPlaying = false; let count = 0; let timer = null; let audioCtx = null;
+
+    function getChordIntervalNotes(chordName) {
+        if (chordName === "---") return { notes: [], intervals: [] };
+        let root = chordName.replace('m', '').replace('dim', '');
+        let quality = chordName.includes('dim') ? 'dim' : (chordName.includes('m') ? 'minor' : 'major');
+        let rootIdx = notes.indexOf(root);
+        let cNotes = [notes[rootIdx]];
+        let intervals = ['1'];
+        if (quality === 'major') {
+            cNotes.push(notes[(rootIdx+4)%12]); intervals.push('3');
+            cNotes.push(notes[(rootIdx+7)%12]); intervals.push('5');
+        } else if (quality === 'minor') {
+            cNotes.push(notes[(rootIdx+3)%12]); intervals.push('♭3');
+            cNotes.push(notes[(rootIdx+7)%12]); intervals.push('5');
+        } else if (quality === 'dim') {
+            cNotes.push(notes[(rootIdx+3)%12]); intervals.push('♭3');
+            cNotes.push(notes[(rootIdx+6)%12]); intervals.push('♭5');
+        }
+        return { notes: cNotes, intervals: intervals, rootNote: notes[rootIdx] };
+    }
+
+    function updateFretboard(chordData) {
+        const chordNotes = chordData.notes || [];
+        const intervals = chordData.intervals || [];
+        const rootNote = chordData.rootNote;
+        for (let s = 0; s < 6; s++) {
+            const stringRootIdx = notes.indexOf(stringRoots[s]);
+            for (let f = 0; f <= 12; f++) {
+                const noteAtFret = notes[(stringRootIdx + f) % 12];
+                const marker = document.getElementById(`note-${s}-${f}`);
+                if (!marker) continue;
+                marker.classList.remove('active', 'root', 'interval');
+                marker.textContent = "";
+                if (chordNotes.includes(noteAtFret)) {
+                    marker.classList.add('active');
+                    if (noteAtFret === rootNote) {
+                        marker.classList.add('root');
+                        marker.textContent = flatMap[noteAtFret] || noteAtFret;
+                    } else {
+                        marker.classList.add('interval');
+                        marker.textContent = intervals[chordNotes.indexOf(noteAtFret)];
+                    }
+                }
+            }
+        }
+    }
+
+    function playClick(isDownbeat) {
+        if (!audioCtx) return;
+        const volume = document.getElementById('volumeSlider').value;
+        if (volume == 0) return;
+        const bufferSize = audioCtx.sampleRate * 0.05;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = isDownbeat ? 3000 : 1500;
+        filter.Q.value = 10;
+        const envelope = audioCtx.createGain();
+        envelope.gain.setValueAtTime(volume, audioCtx.currentTime);
+        envelope.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+        noise.connect(filter); filter.connect(envelope); envelope.connect(audioCtx.destination);
+        noise.start();
+    }
+
+    function tick() {
+        const switchLimit = parseInt(document.getElementById('measureSelector').value);
+        const stepInCycle = count % switchLimit;
+        const beatInMeasure = count % 4;
+        playClick(beatInMeasure === 0);
+        document.querySelectorAll('.beat-dot').forEach((dot, i) => dot.classList.toggle('active', i === beatInMeasure));
+        document.getElementById('progressBar').style.width = ((stepInCycle + 1) / switchLimit * 100) + "%";
+
+        if (stepInCycle === 0) {
+            const rootKey = document.getElementById('rootSelector').value;
+            const rootIdx = notes.indexOf(rootKey);
+            const isMajor = document.getElementById('modeSelector').value === 'major';
+            const intervals = isMajor ? majorIntervals : minorIntervals;
+            const qualities = isMajor ? majorQualities : minorQualities;
+            const numerals = isMajor ? majorNumerals : minorNumerals;
+            const scaleIndex = Math.floor(Math.random() * intervals.length);
+            const chordRoot = notes[(rootIdx + intervals[scaleIndex]) % 12];
+            const chordName = (flatMap[chordRoot] || chordRoot) + qualities[scaleIndex];
+            const numeral = numerals[scaleIndex];
+            document.getElementById('currentChord').innerHTML = `<small>${numeral}</small>${chordName}`;
+            updateFretboard(getChordIntervalNotes(chordRoot + qualities[scaleIndex]));
+        }
+        count++;
+        timer = setTimeout(tick, (60 / document.getElementById('tempoSlider').value) * 1000);
+    }
+
+    document.getElementById('playBtn').addEventListener('click', function() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            this.textContent = "Pause"; this.classList.add('playing'); tick();
+        } else {
+            clearTimeout(timer); this.textContent = "Start Practice"; this.classList.remove('playing');
+        }
+    });
+
+    document.getElementById('toggleVis').addEventListener('click', function() {
+        const content = document.getElementById('visualizerContent');
+        const icon = document.getElementById('triIcon');
+        const isHidden = content.classList.toggle('hidden');
+        icon.classList.toggle('expanded', !isHidden);
+    });
+
+    document.getElementById('tempoSlider').addEventListener('input', (e) => document.getElementById('bpmValue').textContent = e.target.value);
+    initFretboard();
+</script>
+</body>
+</html>
